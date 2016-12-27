@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -73,7 +72,6 @@ type ActiveTasksResponse []struct {
 type AllDbsResponse []string
 
 type DbUpdatesRequest struct {
-	ErrorResponse
 	Feed      string `json:"feed"`
 	Timeout   int    `json:"timeout"`
 	HeartBeat bool   `json:"heartbeat"`
@@ -100,7 +98,6 @@ type LogRequest struct {
 type LogResponse string
 
 type ReplicateRequest struct {
-	ErrorResponse
 	Cancel       bool     `json:"cancel"`
 	Continuous   bool     `json:"continuous"`
 	CreateTarget bool     `json:"create_target"`
@@ -269,40 +266,7 @@ type ConfigSectionResponse struct {
 }
 
 type client struct {
-	Client   *http.Client
-	IP       string
-	Port     int
-	Username string
-	Password string
-}
-
-func (s *client) requester(method, url string, reqBody io.Reader, res interface{}) error {
-	if s.Client == nil {
-		return errors.New("You must set an HTTP Client to make requests. Current client is nil")
-	}
-
-	req, err := http.NewRequest(method, fmt.Sprintf("http://%s:%d%s", s.IP, s.Port, url), reqBody)
-	if err != nil {
-		return err
-	}
-
-	if s.Username != "" && s.Password != "" {
-		req.SetBasicAuth(s.Username, s.Password)
-	}
-
-	req.Header.Add("Accept", "application/json")
-
-	httpRes, err := s.Client.Do(req)
-	if err != nil {
-		return err
-	}
-
-	err = json.NewDecoder(httpRes.Body).Decode(res)
-	if err != nil {
-		return fmt.Errorf("Error parsing response: %s", err.Error())
-	}
-
-	return nil
+	*CouchDb2ConnDetails
 }
 
 func (s *client) Meta() (res *MetaResponse, err error) {
@@ -380,7 +344,7 @@ func (s *client) Log(r *LogRequest) (res *LogResponse, err error) {
 	}
 	requestReader := bytes.NewReader(requestBytes)
 
-	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s:%d/_log", s.IP, s.Port), requestReader)
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s/_log", s.Address), requestReader)
 	if err != nil {
 		return
 	}
@@ -502,16 +466,10 @@ func (s *client) Section(se string) (res *ConfigSectionResponse, err error) {
 //	return
 //}
 
-func NewClient(t time.Duration, i string, port int, u, pass string) Client {
-	s := &client{
-		Client: &http.Client{
-			Timeout: t,
-		},
-		IP:       i,
-		Port:     port,
-		Username: u,
-		Password: pass,
+func NewClient(t time.Duration, addr string, user, pass string) (c Client) {
+	c = &client{
+		CouchDb2ConnDetails: NewConnection(t, addr, user, pass, true),
 	}
 
-	return s
+	return
 }

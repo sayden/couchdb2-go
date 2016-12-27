@@ -4,19 +4,14 @@ import (
 	"testing"
 	"time"
 	"strings"
+	"os"
 )
 
 var testClient Client
 
-func errorFunc(err error, t *testing.T) {
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func newClient() Client {
 	if testClient == nil {
-		testClient = NewClient(time.Second, "127.0.0.1", 5984, "admin", "1234")
+		testClient = NewClient(time.Second, os.Getenv("COUCHDB_ADDRESS"), os.Getenv("COUCHDB_USER"), os.Getenv("COUCHDB_PASSWORD"))
 	}
 	return testClient
 }
@@ -44,7 +39,7 @@ func TestClient_Meta_And_Transport(t *testing.T) {
 	})
 
 	t.Run("Incorrect ip. Timeout", func(t *testing.T) {
-		c := NewClient(time.Second, "0.0.0.1", 5984, "", "")
+		c := NewClient(time.Second, "0.0.0.1:213132", "", "")
 
 		_, err := c.Meta()
 		if err == nil {
@@ -53,7 +48,7 @@ func TestClient_Meta_And_Transport(t *testing.T) {
 	})
 
 	t.Run("Incorrect port. Timeout", func(t *testing.T) {
-		c := NewClient(time.Second, "127.0.0.1", 333333, "", "")
+		c := NewClient(time.Second, "127.0.0.1:333333" , "", "")
 
 		_, err := c.Meta()
 		if err == nil {
