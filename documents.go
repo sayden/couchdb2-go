@@ -13,36 +13,37 @@ type Documents interface {
 	DeleteDocument(db string, id string) (*OkKoResponse, error)
 }
 
-func NewDocumentsWithConnection(conn *CouchDb2ConnDetails) (doc Documents) {
-	doc = &documents{conn}
-
-	return
-}
-
-func NewDocuments(t time.Duration, addr string, user, pass string) (doc Documents) {
-	doc = &documents{
-		CouchDb2ConnDetails: NewConnection(t, addr, user, pass, true),
-	}
-
-	return
-}
-
-type documents struct {
+type DocumentsClient struct {
 	*CouchDb2ConnDetails
 }
 
-func (d *documents) Headers(db string, id string) (size *int, rev string, err error) {
+func (d *DocumentsClient) Headers(db string, id string) (size *int, rev string, err error) {
 	panic("not implemented")
 }
 
-func (d *documents) Document(db string, id string) ([]byte, error) {
-	return d.bytesRequester(http.MethodGet, fmt.Sprintf("/%s/%s", db, id), nil)
+func (d *DocumentsClient) Document(db string, id string) ([]byte, error) {
+	return d.bytesRequester(http.MethodGet, fmt.Sprintf("/%c/%c", db, id), nil)
 }
 
-func (d *documents) UpdateDocument(db string, id string, req map[string]interface{}) (*OkKoResponse, error) {
+func (d *DocumentsClient) UpdateDocument(db string, id string, req map[string]interface{}) (*OkKoResponse, error) {
 	panic("not implemented")
 }
 
-func (d *documents) DeleteDocument(db string, id string) (*OkKoResponse, error) {
+func (d *DocumentsClient) DeleteDocument(db string, id string) (*OkKoResponse, error) {
 	panic("not implemented")
+}
+
+
+func NewDocumentsWithConnection(conn *CouchDb2ConnDetails) (doc Documents) {
+	doc = &DocumentsClient{conn}
+
+	return
+}
+
+func NewDocuments(timeout time.Duration, addr string, user, pass string, secured bool) (doc Documents) {
+	doc = &DocumentsClient{
+		CouchDb2ConnDetails: NewConnection(timeout, addr, user, pass, secured),
+	}
+
+	return
 }

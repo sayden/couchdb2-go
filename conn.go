@@ -21,27 +21,31 @@ type CouchDb2ConnDetails struct {
 	protocol string
 }
 
-func (s *CouchDb2ConnDetails) bytesRequester(method, url string, reqBody io.Reader) (byt []byte, err error) {
-	if s.Client == nil {
+func (c *CouchDb2ConnDetails) GetConnection() *CouchDb2ConnDetails {
+	return c
+}
+
+func (c *CouchDb2ConnDetails) bytesRequester(method, url string, reqBody io.Reader) (byt []byte, err error) {
+	if c.Client == nil {
 		return nil, errors.New("You must set an HTTP Client to make requests. Current client is nil")
 	}
 
 	if doDebug {
-		fmt.Printf("%s://%s%s\n", s.protocol, s.Address, url)
+		fmt.Printf("%s://%s%s\n", c.protocol, c.Address, url)
 	}
-	req, err := http.NewRequest(method, fmt.Sprintf("%s://%s%s", s.protocol, s.Address, url), reqBody)
+	req, err := http.NewRequest(method, fmt.Sprintf("%s://%s%s", c.protocol, c.Address, url), reqBody)
 	if err != nil {
 		return nil, err
 	}
 
-	if s.Username != "" && s.Password != "" {
-		req.SetBasicAuth(s.Username, s.Password)
+	if c.Username != "" && c.Password != "" {
+		req.SetBasicAuth(c.Username, c.Password)
 	}
 
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Content-Type", "application/json")
 
-	httpRes, err := s.Client.Do(req)
+	httpRes, err := c.Client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -51,27 +55,27 @@ func (s *CouchDb2ConnDetails) bytesRequester(method, url string, reqBody io.Read
 	return byt, err
 }
 
-func (s *CouchDb2ConnDetails) requester(method, url string, reqBody io.Reader, res interface{}) error {
-	if s.Client == nil {
+func (c *CouchDb2ConnDetails) requester(method, url string, reqBody io.Reader, res interface{}) error {
+	if c.Client == nil {
 		return errors.New("You must set an HTTP Client to make requests. Current client is nil")
 	}
 
 	if doDebug {
-		fmt.Printf("%s://%s%s\n", s.protocol, s.Address, url)
+		fmt.Printf("%s://%s%s\n", c.protocol, c.Address, url)
 	}
-	req, err := http.NewRequest(method, fmt.Sprintf("%s://%s%s", s.protocol, s.Address, url), reqBody)
+	req, err := http.NewRequest(method, fmt.Sprintf("%s://%s%s", c.protocol, c.Address, url), reqBody)
 	if err != nil {
 		return err
 	}
 
-	if s.Username != "" && s.Password != "" {
-		req.SetBasicAuth(s.Username, s.Password)
+	if c.Username != "" && c.Password != "" {
+		req.SetBasicAuth(c.Username, c.Password)
 	}
 
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Content-Type", "application/json")
 
-	httpRes, err := s.Client.Do(req)
+	httpRes, err := c.Client.Do(req)
 	if err != nil {
 		return err
 	}

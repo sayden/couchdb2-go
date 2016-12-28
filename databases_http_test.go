@@ -15,7 +15,9 @@ func newDatabase() Database {
 		testDatabase = NewDatabase(time.Minute,
 			os.Getenv("COUCHDB_ADDRESS"),
 			os.Getenv("COUCHDB_USER"),
-			os.Getenv("COUCHDB_PASSWORD"))
+			os.Getenv("COUCHDB_PASSWORD"),
+			false,
+		)
 	}
 	return testDatabase
 }
@@ -23,7 +25,7 @@ func newDatabase() Database {
 func TestDatabasesClient_Changes(t *testing.T) {
 	dT := newDatabase()
 
-	d := dT.(*databasesClient)
+	d := dT.(*DatabasesClient)
 	d.CouchDb2ConnDetails.Client.Timeout = time.Second * 20
 
 	req := map[string]string{
@@ -42,7 +44,7 @@ func TestDatabasesClient_Changes(t *testing.T) {
 func TestDatabasesClient_Changes_ForeverPolling(t *testing.T) {
 	dT := newDatabase()
 
-	d := dT.(*databasesClient)
+	d := dT.(*DatabasesClient)
 	d.CouchDb2ConnDetails.Client.Timeout = 0
 
 	req := map[string]string{
@@ -52,7 +54,7 @@ func TestDatabasesClient_Changes_ForeverPolling(t *testing.T) {
 		"since":     "0",
 	}
 
-	out, quit, err := d.ChangesContinuous("test", req, nil)
+	out, quit, err := d.ChangesContinuous("test", req, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +74,7 @@ func TestDatabasesClient_Changes_ForeverPolling(t *testing.T) {
 func TestDatabasesClient_Changes_FullDocument(t *testing.T) {
 	dT := newDatabase()
 
-	d := dT.(*databasesClient)
+	d := dT.(*DatabasesClient)
 	d.CouchDb2ConnDetails.Client.Timeout = 0
 
 	req := map[string]string{
@@ -88,14 +90,14 @@ func TestDatabasesClient_Changes_FullDocument(t *testing.T) {
 	}
 
 	out := make(chan []byte, 5)
-	documents := documents{
+	documents := DocumentsClient{
 		CouchDb2ConnDetails: d.CouchDb2ConnDetails,
 	}
 
 	go func(in <-chan *DbResult, out chan<- []byte) {
 		var i int
 
-		//Take elements from channel of incoming ID's
+		//Take elements from channel of incoming ID'c
 		for result := range in {
 			doc, err := documents.Document("test", result.ID)
 			if err != nil {
