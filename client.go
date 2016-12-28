@@ -303,7 +303,7 @@ func (s *client) AllDbs() (*AllDbsResponse, error) {
 func (s *client) DbUpdates(r *DbUpdatesRequest) (res *DbUpdatesResponse, err error) {
 	requestBytes, err := json.Marshal(r)
 	if err != nil {
-		err = fmt.Errorf("Error creating request JSON: %c", err.Error())
+		err = fmt.Errorf("Error creating request JSON: %s", err.Error())
 		return
 	}
 	requestReader := bytes.NewReader(requestBytes)
@@ -344,7 +344,7 @@ func (s *client) Log(r *LogRequest) (res *LogResponse, err error) {
 	}
 	requestReader := bytes.NewReader(requestBytes)
 
-	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%c/_log", s.Address), requestReader)
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s/_log", s.Address), requestReader)
 	if err != nil {
 		return
 	}
@@ -436,7 +436,7 @@ func (s *client) Config() (res *ConfigResponse, err error) {
 }
 
 func (s *client) Section(se string) (res *ConfigSectionResponse, err error) {
-	err = s.requester(http.MethodGet, fmt.Sprintf("/_config/%c", se), nil, &res)
+	err = s.requester(http.MethodGet, fmt.Sprintf("/_config/%s", se), nil, &res)
 
 	if res != nil && res.ErrorS != "" {
 		return nil, &ErrorResponse{
@@ -449,19 +449,19 @@ func (s *client) Section(se string) (res *ConfigSectionResponse, err error) {
 }
 
 //func (c *server) Key(se, k string) (res *ConfigSectionResponse, err error) {
-//	err = c.requester(http.MethodGet, fmt.Sprintf("/_config/%c/%c", se, k), nil, res)
+//	err = c.requester(http.MethodGet, fmt.Sprintf("/_config/%s/%s", se, k), nil, res)
 // TODO
 //	return
 //}
 //
 //func (c *server) SetKey(se, k string) (res *ConfigSectionResponse, err error) {
-//	err = c.requester("PUT", fmt.Sprintf("/_config/%c/%c", se, k), nil, res)
+//	err = c.requester("PUT", fmt.Sprintf("/_config/%s/%s", se, k), nil, res)
 // TODO
 //	return
 //}
 //
 //func (c *server) DeleteKey(se, k string) (res *ConfigSectionResponse, err error) {
-//	err = c.requester("DELETE", fmt.Sprintf("/_config/%c/%c", se, k), nil, res)
+//	err = c.requester("DELETE", fmt.Sprintf("/_config/%s/%s", se, k), nil, res)
 // TODO
 //	return
 //}

@@ -22,7 +22,7 @@ func (d *DocumentsClient) Headers(db string, id string) (size *int, rev string, 
 }
 
 func (d *DocumentsClient) Document(db string, id string) ([]byte, error) {
-	return d.bytesRequester(http.MethodGet, fmt.Sprintf("/%c/%c", db, id), nil)
+	return d.bytesRequester(http.MethodGet, fmt.Sprintf("/%s/%s", db, id), nil)
 }
 
 func (d *DocumentsClient) UpdateDocument(db string, id string, req map[string]interface{}) (*OkKoResponse, error) {

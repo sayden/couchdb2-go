@@ -82,16 +82,16 @@ func (d *DatabasesClient) Changes(db string, queryReq map[string]string) (*Chang
 func (d *DatabasesClient) ChangesContinuous(db string, queryReq map[string]string, out chan *DbResult, quit chan struct{}) (chan *DbResult, chan<- struct{}, error) {
 	var query string
 	for k, v := range queryReq {
-		query = fmt.Sprintf("%c%c=%v&", query, k, v)
+		query = fmt.Sprintf("%s%s=%v&", query, k, v)
 	}
 
 	if d.Client == nil {
 		return nil, nil, errors.New("You must set an HTTP Client to make requests. Current client is nil")
 	}
 
-	//fmt.Printf("%c://%c/_changes?%c\n", d.protocol, d.Address, query)
+	//fmt.Printf("%s://%s/_changes?%s\n", d.protocol, d.Address, query)
 
-	reqHttp, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%c://%c/%c/_changes?%c", d.protocol, d.Address, db, query), nil)
+	reqHttp, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s://%s/%s/_changes?%s", d.protocol, d.Address, db, query), nil)
 	if err != nil {
 		return nil, nil, err
 	}
