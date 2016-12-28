@@ -103,10 +103,10 @@ func (s *CouchDb2ConnDetails) requester(method, url string, reqBody io.Reader, r
 	return nil
 }
 
-func NewConnection(t time.Duration, addr string, user, pass string, secure bool) (conn *CouchDb2ConnDetails) {
+func NewConnection(timeout time.Duration, addr string, user, pass string, secure bool) (conn *CouchDb2ConnDetails) {
 	conn = &CouchDb2ConnDetails{
 		Client: &http.Client{
-			Timeout: t,
+			Timeout: timeout,
 		},
 		Address:  addr,
 		Username: user,
