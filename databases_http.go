@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 )
@@ -85,12 +84,15 @@ func (d *DatabasesClient) ChangesContinuous(db string, queryReq map[string]strin
 		query = fmt.Sprintf("%s%s=%v&", query, k, v)
 	}
 
+	//remove last '&' on query
+	query = strings.TrimSuffix(query, "&")
+
 	if d.Client == nil {
 		return nil, nil, errors.New("You must set an HTTP Client to make requests. Current client is nil")
 	}
 
 	//fmt.Printf("%s://%s/_changes?%s\n", d.protocol, d.Address, query)
-
+	fmt.Printf("Attempting connection to %s://%s/%s/_changes?%s\n", d.protocol, d.Address, db, query)
 	reqHttp, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s://%s/%s/_changes?%s", d.protocol, d.Address, db, query), nil)
 	if err != nil {
 		return nil, nil, err
@@ -125,7 +127,13 @@ func (d *DatabasesClient) ChangesContinuous(db string, queryReq map[string]strin
 		defer httpRes.Body.Close()
 		defer func() {
 			if err := recover(); err != nil {
-				fmt.Println(err)
+				fmt.Printf("Recovered error: %s\n", err)
+				out <- &DbResult{
+					ErrorResponse: &ErrorResponse{
+						ErrorS: fmt.Sprintf("%s\n", err),
+						Reason: "Error recovered",
+					},
+				}
 			}
 		}()
 
@@ -133,13 +141,40 @@ func (d *DatabasesClient) ChangesContinuous(db string, queryReq map[string]strin
 			line = scanner.Bytes()
 
 			if string(line) == "" || string(line) == "\n" {
+				fmt.Println("Got empty result or newline")
 				continue
+			} else if strings.Contains(string(line), "error") {
+				fmt.Printf("ERROR: received from db: %s\n", string(line))
+
+				var errRes ErrorResponse
+
+				err = json.Unmarshal(line, &errRes)
+				if err != nil {
+					fmt.Printf("ERROR: received from db: %s\n", err.Error())
+					out <- &DbResult{
+						ErrorResponse: &ErrorResponse{
+							ErrorS: err.Error(),
+							Reason: "last_seq found. This usually means that the connections has finished",
+						},
+					}
+				}
+
+				out <- &DbResult{
+					ErrorResponse:&errRes,
+				}
+
+				break
 			} else if strings.Contains(string(line), "last_seq") {
 				err = json.Unmarshal(line, &last)
 
 				if err != nil {
-					//TODO better error handling
-					fmt.Println("ERROR:", err)
+					fmt.Printf("ERROR: reading json: %s\n", err.Error())
+					out <- &DbResult{
+						ErrorResponse: &ErrorResponse{
+							ErrorS: err.Error(),
+							Reason: "last_seq found. This usually means that the connections has finished",
+						},
+					}
 				}
 
 				break
@@ -147,11 +182,14 @@ func (d *DatabasesClient) ChangesContinuous(db string, queryReq map[string]strin
 				var result DbResult
 
 				err = json.Unmarshal(line, &result)
-				if result.ErrorS != "" {
+				if err != nil {
 					fmt.Println("ERROR:", result.Error())
+					out <- &DbResult{
+						ErrorResponse: &ErrorResponse{
+							ErrorS: err.Error(),
+						},
+					}
 				}
-
-				result.DbName = db
 
 				select {
 				case <-quit:
@@ -162,7 +200,14 @@ func (d *DatabasesClient) ChangesContinuous(db string, queryReq map[string]strin
 		}
 
 		if err := scanner.Err(); err != nil {
-			fmt.Fprintln(os.Stderr, "reading standard input:", err)
+			fmt.Printf("ERROR: reading: %s\n", err.Error())
+			out <- &DbResult{
+				ErrorResponse: &ErrorResponse{
+					ErrorS: "Error scanning input",
+					Reason: err.Error(),
+				},
+			}
+			close(out)
 		}
 
 		fmt.Println("Quitting")

@@ -27,7 +27,7 @@ type Client interface {
 
 type Config interface {
 	Section(string) (*ConfigSectionResponse, error)
-	// TODO
+	// TODO Config interface
 	//Key(s, k string)
 	//SetKey(s, k string)
 	//DeleteKey(s, k string)
@@ -450,19 +450,19 @@ func (s *client) Section(se string) (res *ConfigSectionResponse, err error) {
 
 //func (c *server) Key(se, k string) (res *ConfigSectionResponse, err error) {
 //	err = c.requester(http.MethodGet, fmt.Sprintf("/_config/%s/%s", se, k), nil, res)
-// TODO
+// TODO Key function on server type
 //	return
 //}
 //
 //func (c *server) SetKey(se, k string) (res *ConfigSectionResponse, err error) {
 //	err = c.requester("PUT", fmt.Sprintf("/_config/%s/%s", se, k), nil, res)
-// TODO
+// TODO SetKey function on server type
 //	return
 //}
 //
 //func (c *server) DeleteKey(se, k string) (res *ConfigSectionResponse, err error) {
 //	err = c.requester("DELETE", fmt.Sprintf("/_config/%s/%s", se, k), nil, res)
-// TODO
+// TODO DeleteKey function on server type
 //	return
 //}
 

@@ -63,6 +63,7 @@ func (c *CouchDb2ConnDetails) requester(method, url string, reqBody io.Reader, r
 	if doDebug {
 		fmt.Printf("%s://%s%s\n", c.protocol, c.Address, url)
 	}
+
 	req, err := http.NewRequest(method, fmt.Sprintf("%s://%s%s", c.protocol, c.Address, url), reqBody)
 	if err != nil {
 		return err

@@ -202,7 +202,7 @@ type LastSeq struct {
 }
 
 type DbResult struct {
-	ErrorResponse
+	*ErrorResponse
 	Changes []struct {
 		Rev string `json:"rev"`
 	} `json:"changes"`
