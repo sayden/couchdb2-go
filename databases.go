@@ -16,7 +16,8 @@ type Database interface {
 	Delete(db string, designDoc string, name string) (*OkKoResponse, error)
 	Explain(db string, req *FindRequest) (*ExplainResponse, error)
 	Changes(db string, req map[string]string) (*ChangesResponse, error)
-	ChangesContinuous(db string, queryReq map[string]string, inCh chan *DbResult, quitCh chan struct{}) (chan *DbResult, chan<- struct{}, error)
+	//ChangesContinuous(db string, queryReq map[string]string, inCh chan *DbResult, quitCh chan struct{}) (chan *DbResult, chan<- struct{}, error)
+	ChangesContinuousRaw(db string, queryReq map[string]string, inCh chan *DbResult, quitCh chan struct{}) (chan *DbResult, chan<- struct{}, error)
 	Compact(db string) (*OkKoResponse, error)
 	CompactDesignDoc(db string, ddoc string) (*OkKoResponse, error)
 	EnsureFullCommit(db string) (*EnsureFullCommitResponse, error)
@@ -198,10 +199,11 @@ type ChangesRequest struct {
 }
 
 type LastSeq struct {
-	Last_Seq int `json:"last_seq"`
+	Last_Seq *int `json:"last_seq"`
 }
 
 type DbResult struct {
+	LastSeq
 	*ErrorResponse
 	Changes []struct {
 		Rev string `json:"rev"`

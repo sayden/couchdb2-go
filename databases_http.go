@@ -78,142 +78,237 @@ func (d *DatabasesClient) Changes(db string, queryReq map[string]string) (*Chang
 	panic("not implemented")
 }
 
-func (d *DatabasesClient) ChangesContinuous(db string, queryReq map[string]string, out chan *DbResult, quit chan struct{}) (chan *DbResult, chan<- struct{}, error) {
-	var query string
-	for k, v := range queryReq {
-		query = fmt.Sprintf("%s%s=%v&", query, k, v)
+func buildURLParams(q map[string]string) (query string) {
+	for k, v := range q {
+		query = fmt.Sprintf("%s%s=%s&", query, k, v)
 	}
 
 	//remove last '&' on query
 	query = strings.TrimSuffix(query, "&")
 
+	return
+}
+
+func completeHeaders(r *http.Request) {
+	r.Header.Add("Accept", "application/json")
+	r.Header.Add("Content-Type", "application/json")
+}
+
+func (d *DatabasesClient) setAuth(r *http.Request) {
+	if d.Username != "" && d.Password != "" {
+		r.SetBasicAuth(d.Username, d.Password)
+	}
+}
+
+func handleEmptyLine(line string) {
+	fmt.Printf(".")
+}
+
+func handleResWithError(lineByt []byte, out chan *DbResult, db string) {
+	fmt.Printf("ERROR: received from db")
+
+	var errRes ErrorResponse
+	var err error
+
+	err = json.Unmarshal(lineByt, &errRes)
+	if err != nil {
+		fmt.Printf("ERROR: unmarshaling json from db: %s\n", err.Error())
+		out <- &DbResult{
+			DbName: db,
+			ErrorResponse: &ErrorResponse{
+				ErrorS: err.Error(),
+				Reason: "last_seq found. This usually means that the connections has finished",
+			},
+		}
+	}
+
+	out <- &DbResult{
+		DbName:        db,
+		ErrorResponse: &errRes,
+	}
+}
+
+//func handleLastSeqResponse(lineByt []byte, out chan *DbResult, db string) {
+//	var last LastSeq
+//	err := json.Unmarshal(lineByt, &last)
+//
+//	if err != nil {
+//		fmt.Printf("ERROR: reading json: %s\n", err.Error())
+//		out <- &DbResult{
+//			DbName: db,
+//			ErrorResponse: &ErrorResponse{
+//				ErrorS: err.Error(),
+//				Reason: "last_seq found. This usually means that the connections has finished",
+//			},
+//		}
+//	}
+//}
+
+func handleResult(lineByt []byte, out chan *DbResult, quit chan struct{}, db string) {
+	var result DbResult
+
+	err := json.Unmarshal(lineByt, &result)
+	if err != nil {
+		fmt.Printf("ERROR unmarshaling result:\nDATA: '%s'\n%s\n\n", string(lineByt), err.Error())
+
+		out <- &DbResult{
+			DbName: db,
+			ErrorResponse: &ErrorResponse{
+				ErrorS: err.Error(),
+			},
+		}
+	}
+
+	result.DbName = db
+
+	select {
+	case <-quit:
+		break
+	case out <- &result:
+	}
+}
+
+func handleScannerErr(err error, out chan *DbResult, db string){
+	fmt.Printf("ERROR: scanner error: %s\n", err.Error())
+
+	out <- &DbResult{
+		DbName: db,
+		ErrorResponse: &ErrorResponse{
+			ErrorS: "Error scanning input",
+			Reason: err.Error(),
+		},
+	}
+}
+
+//func (d *DatabasesClient) ChangesContinuous(db string, queryReq map[string]string, out chan *DbResult, quit chan struct{}) (chan *DbResult, chan<- struct{}, error) {
+//	if d.Client == nil {
+//		return nil, nil, errors.New("You must set an HTTP Client to make requests. Current client is nil")
+//	}
+//
+//	//take a map of kv and convert them into a "k=v&" string for URL params
+//	query := buildURLParams(queryReq)
+//
+//	//build request
+//	fmt.Printf("Attempting connection to %s://%s/%s/_changes?%s\n", d.protocol, d.Address, db, query)
+//	reqHttp, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s://%s/%s/_changes?%s", d.protocol, d.Address, db, query), nil)
+//	if err != nil {
+//		return nil, nil, err
+//	}
+//
+//	//set authentication
+//	d.setAuth(reqHttp)
+//
+//	//set content-type and "accept"
+//	completeHeaders(reqHttp)
+//
+//	//make request
+//	httpRes, err := d.Client.Do(reqHttp)
+//	if err != nil {
+//		return nil, nil, err
+//	}
+//
+//	//create channels if necessary
+//	if out == nil {
+//		out = make(chan *DbResult, 100)
+//	}
+//	if quit == nil {
+//		quit = make(chan struct{}, 1)
+//	}
+//
+//	scanner := bufio.NewScanner(httpRes.Body)
+//
+//	var line string
+//	var lineByt []byte
+//
+//	go func() {
+//		defer httpRes.Body.Close()
+//
+//		for scanner.Scan() {
+//			lineByt = scanner.Bytes()
+//			line = string(lineByt)
+//
+//			if line == "" || line == "\n" {
+//				handleEmptyLine(line)
+//				continue
+//			} else if strings.Contains(line, "error") {
+//				handleResWithError(lineByt, out, db)
+//				break
+//			} else if strings.Contains(line, "last_seq") {
+//				handleLastSeqResponse(lineByt, out, db)
+//				break
+//			} else {
+//				handleResult(lineByt, out, quit, db)
+//			}
+//		}
+//
+//		if err := scanner.Err(); err != nil {
+//			handleScannerErr(err, out, db)
+//		}
+//
+//		fmt.Println("Quitting")
+//		close(out)
+//	}()
+//
+//	return out, quit, nil
+//}
+
+func (d *DatabasesClient) ChangesContinuousRaw(db string, queryReq map[string]string, out chan *DbResult, quit chan struct{}) (chan *DbResult, chan<- struct{}, error) {
 	if d.Client == nil {
 		return nil, nil, errors.New("You must set an HTTP Client to make requests. Current client is nil")
 	}
 
-	//fmt.Printf("%s://%s/_changes?%s\n", d.protocol, d.Address, query)
+	//take a map of kv and convert them into a "k=v&" string for URL params
+	query := buildURLParams(queryReq)
+
+	//build request
 	fmt.Printf("Attempting connection to %s://%s/%s/_changes?%s\n", d.protocol, d.Address, db, query)
 	reqHttp, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s://%s/%s/_changes?%s", d.protocol, d.Address, db, query), nil)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	if d.Username != "" && d.Password != "" {
-		reqHttp.SetBasicAuth(d.Username, d.Password)
-	}
+	//set authentication
+	d.setAuth(reqHttp)
 
-	reqHttp.Header.Add("Accept", "application/json")
-	reqHttp.Header.Add("Content-Type", "application/json")
+	//set content-type and "accept"
+	completeHeaders(reqHttp)
 
+	//make request
 	httpRes, err := d.Client.Do(reqHttp)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	scanner := bufio.NewScanner(httpRes.Body)
-
-	var line []byte
-	var last LastSeq
-
+	//create channels if necessary
 	if out == nil {
 		out = make(chan *DbResult, 100)
 	}
-
 	if quit == nil {
 		quit = make(chan struct{}, 1)
 	}
 
-	go func() {
-		defer httpRes.Body.Close()
-		defer func() {
-			if err := recover(); err != nil {
-				fmt.Printf("Recovered error: %s\n", err)
-				out <- &DbResult{
-					ErrorResponse: &ErrorResponse{
-						ErrorS: fmt.Sprintf("%s\n", err),
-						Reason: "Error recovered",
-					},
-				}
-			}
-		}()
-
-		for scanner.Scan() {
-			line = scanner.Bytes()
-
-			if string(line) == "" || string(line) == "\n" {
-				fmt.Println("Got empty result or newline")
-				continue
-			} else if strings.Contains(string(line), "error") {
-				fmt.Printf("ERROR: received from db: %s\n", string(line))
-
-				var errRes ErrorResponse
-
-				err = json.Unmarshal(line, &errRes)
-				if err != nil {
-					fmt.Printf("ERROR: received from db: %s\n", err.Error())
-					out <- &DbResult{
-						ErrorResponse: &ErrorResponse{
-							ErrorS: err.Error(),
-							Reason: "last_seq found. This usually means that the connections has finished",
-						},
-					}
-				}
-
-				out <- &DbResult{
-					ErrorResponse:&errRes,
-				}
-
-				break
-			} else if strings.Contains(string(line), "last_seq") {
-				err = json.Unmarshal(line, &last)
-
-				if err != nil {
-					fmt.Printf("ERROR: reading json: %s\n", err.Error())
-					out <- &DbResult{
-						ErrorResponse: &ErrorResponse{
-							ErrorS: err.Error(),
-							Reason: "last_seq found. This usually means that the connections has finished",
-						},
-					}
-				}
-
-				break
-			} else {
-				var result DbResult
-
-				err = json.Unmarshal(line, &result)
-				if err != nil {
-					fmt.Println("ERROR:", result.Error())
-					out <- &DbResult{
-						ErrorResponse: &ErrorResponse{
-							ErrorS: err.Error(),
-						},
-					}
-				}
-
-				select {
-				case <-quit:
-					break
-				case out <- &result:
-				}
-			}
-		}
-
-		if err := scanner.Err(); err != nil {
-			fmt.Printf("ERROR: reading: %s\n", err.Error())
-			out <- &DbResult{
-				ErrorResponse: &ErrorResponse{
-					ErrorS: "Error scanning input",
-					Reason: err.Error(),
-				},
-			}
-			close(out)
-		}
-
-		fmt.Println("Quitting")
-	}()
+	//Launch the listening goroutine that will close http.Body eventually
+	go dbResultHandler(httpRes, out, quit, db)
 
 	return out, quit, nil
+}
+
+func dbResultHandler(httpRes *http.Response, out chan *DbResult, quit chan struct{}, db string){
+	scanner := bufio.NewScanner(httpRes.Body)
+
+	defer httpRes.Body.Close()
+
+	for scanner.Scan() {
+		handleResult(scanner.Bytes(), out, quit, db)
+	}
+
+	if err := scanner.Err(); err != nil {
+		handleScannerErr(err, out, db)
+	}
+
+	fmt.Println("Quitting")
+
+	close(out)
 }
 
 func (d *DatabasesClient) Compact(db string) (*OkKoResponse, error) {
