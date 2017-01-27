@@ -100,66 +100,27 @@ func (d *DatabasesClient) setAuth(r *http.Request) {
 	}
 }
 
-func handleEmptyLine(line string) {
-	fmt.Printf(".")
-}
-
-func handleResWithError(lineByt []byte, out chan *DbResult, db string) {
-	fmt.Printf("ERROR: received from db")
-
-	var errRes ErrorResponse
-	var err error
-
-	err = json.Unmarshal(lineByt, &errRes)
-	if err != nil {
-		fmt.Printf("ERROR: unmarshaling json from db: %s\n", err.Error())
-		out <- &DbResult{
-			DbName: db,
-			ErrorResponse: &ErrorResponse{
-				ErrorS: err.Error(),
-				Reason: "last_seq found. This usually means that the connections has finished",
-			},
-		}
-	}
-
-	out <- &DbResult{
-		DbName:        db,
-		ErrorResponse: &errRes,
-	}
-}
-
-//func handleLastSeqResponse(lineByt []byte, out chan *DbResult, db string) {
-//	var last LastSeq
-//	err := json.Unmarshal(lineByt, &last)
-//
-//	if err != nil {
-//		fmt.Printf("ERROR: reading json: %s\n", err.Error())
-//		out <- &DbResult{
-//			DbName: db,
-//			ErrorResponse: &ErrorResponse{
-//				ErrorS: err.Error(),
-//				Reason: "last_seq found. This usually means that the connections has finished",
-//			},
-//		}
-//	}
-//}
-
 func handleResult(lineByt []byte, out chan *DbResult, quit chan struct{}, db string) {
 	var result DbResult
+	result.DbName = db
 
 	err := json.Unmarshal(lineByt, &result)
 	if err != nil {
-		fmt.Printf("ERROR unmarshaling result:\nDATA: '%s'\n%s\n\n", string(lineByt), err.Error())
+		//fmt.Printf("ERROR unmarshaling result: DATA: '%s'. Desc: %s\n", string(lineByt), err.Error())
 
-		out <- &DbResult{
+		select {
+		case <-quit:
+			break
+		case out <- &DbResult{
 			DbName: db,
 			ErrorResponse: &ErrorResponse{
 				ErrorS: err.Error(),
 			},
+		}:
 		}
-	}
 
-	result.DbName = db
+		return
+	}
 
 	select {
 	case <-quit:
@@ -168,8 +129,8 @@ func handleResult(lineByt []byte, out chan *DbResult, quit chan struct{}, db str
 	}
 }
 
-func handleScannerErr(err error, out chan *DbResult, db string){
-	fmt.Printf("ERROR: scanner error: %s\n", err.Error())
+func handleScannerErr(err error, out chan *DbResult, db string) {
+	//fmt.Printf("ERROR: scanner error: %s\n", err.Error())
 
 	out <- &DbResult{
 		DbName: db,
@@ -179,78 +140,6 @@ func handleScannerErr(err error, out chan *DbResult, db string){
 		},
 	}
 }
-
-//func (d *DatabasesClient) ChangesContinuous(db string, queryReq map[string]string, out chan *DbResult, quit chan struct{}) (chan *DbResult, chan<- struct{}, error) {
-//	if d.Client == nil {
-//		return nil, nil, errors.New("You must set an HTTP Client to make requests. Current client is nil")
-//	}
-//
-//	//take a map of kv and convert them into a "k=v&" string for URL params
-//	query := buildURLParams(queryReq)
-//
-//	//build request
-//	fmt.Printf("Attempting connection to %s://%s/%s/_changes?%s\n", d.protocol, d.Address, db, query)
-//	reqHttp, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s://%s/%s/_changes?%s", d.protocol, d.Address, db, query), nil)
-//	if err != nil {
-//		return nil, nil, err
-//	}
-//
-//	//set authentication
-//	d.setAuth(reqHttp)
-//
-//	//set content-type and "accept"
-//	completeHeaders(reqHttp)
-//
-//	//make request
-//	httpRes, err := d.Client.Do(reqHttp)
-//	if err != nil {
-//		return nil, nil, err
-//	}
-//
-//	//create channels if necessary
-//	if out == nil {
-//		out = make(chan *DbResult, 100)
-//	}
-//	if quit == nil {
-//		quit = make(chan struct{}, 1)
-//	}
-//
-//	scanner := bufio.NewScanner(httpRes.Body)
-//
-//	var line string
-//	var lineByt []byte
-//
-//	go func() {
-//		defer httpRes.Body.Close()
-//
-//		for scanner.Scan() {
-//			lineByt = scanner.Bytes()
-//			line = string(lineByt)
-//
-//			if line == "" || line == "\n" {
-//				handleEmptyLine(line)
-//				continue
-//			} else if strings.Contains(line, "error") {
-//				handleResWithError(lineByt, out, db)
-//				break
-//			} else if strings.Contains(line, "last_seq") {
-//				handleLastSeqResponse(lineByt, out, db)
-//				break
-//			} else {
-//				handleResult(lineByt, out, quit, db)
-//			}
-//		}
-//
-//		if err := scanner.Err(); err != nil {
-//			handleScannerErr(err, out, db)
-//		}
-//
-//		fmt.Println("Quitting")
-//		close(out)
-//	}()
-//
-//	return out, quit, nil
-//}
 
 func (d *DatabasesClient) ChangesContinuousRaw(db string, queryReq map[string]string, out chan *DbResult, quit chan struct{}) (chan *DbResult, chan<- struct{}, error) {
 	if d.Client == nil {
@@ -293,7 +182,7 @@ func (d *DatabasesClient) ChangesContinuousRaw(db string, queryReq map[string]st
 	return out, quit, nil
 }
 
-func dbResultHandler(httpRes *http.Response, out chan *DbResult, quit chan struct{}, db string){
+func dbResultHandler(httpRes *http.Response, out chan *DbResult, quit chan struct{}, db string) {
 	scanner := bufio.NewScanner(httpRes.Body)
 
 	defer httpRes.Body.Close()

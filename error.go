@@ -8,5 +8,5 @@ type ErrorResponse struct {
 }
 
 func (e *ErrorResponse) Error() string {
-	return fmt.Sprintf("Error: %s\nReason: %s", e.ErrorS, e.Reason)
+	return fmt.Sprintf("Error: %s. Reason: %s", e.ErrorS, e.Reason)
 }
