@@ -149,24 +149,54 @@ func handleScannerErr(err error, out chan *DbResult, db string, quit chan struct
 }
 
 func dbResultHandler(httpRes *http.Response, out chan *DbResult, quit chan struct{}, db string) {
-	scanner := bufio.NewScanner(httpRes.Body)
+	//scanner := bufio.NewScanner(httpRes.Body)
 
 	defer httpRes.Body.Close()
 
+	//Test
+	reader := bufio.NewReader(httpRes.Body)
+
+	var err error
+	lineByt := make([]byte, 1024)
+	var isPrefix bool
+
+	lineByt, isPrefix, err = reader.ReadLine()
+
 loop:
-	for scanner.Scan() {
+	for err != nil && !isPrefix {
 		select {
 		case <-quit:
 			break loop
 		case <-time.After(time.Nanosecond):
 		}
 
-		handleResult(scanner.Bytes(), out, quit, db)
+		handleResult(lineByt, out, quit, db)
+
+		if isPrefix {
+			handleScannerErr(err, out, db, quit)
+		}
+
+		if err != nil {
+			handleScannerErr(err, out, db, quit)
+		}
+
+		lineByt, isPrefix, err = reader.ReadLine()
 	}
 
-	if err := scanner.Err(); err != nil {
-		handleScannerErr(err, out, db, quit)
-	}
+//loop:
+//	for scanner.Scan() {
+//		select {
+//		case <-quit:
+//			break loop
+//		case <-time.After(time.Nanosecond):
+//		}
+//
+//		handleResult(scanner.Bytes(), out, quit, db)
+//	}
+//
+//	if err := scanner.Err(); err != nil {
+//		handleScannerErr(err, out, db, quit)
+//	}
 
 	fmt.Println("Closing CouchDB client")
 
