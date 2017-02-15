@@ -95,7 +95,8 @@ func (c *CouchDb2ConnDetails) requester(method, url string, reqBody io.Reader, r
 		if err != nil {
 			return fmt.Errorf("Error parsing response: %s", err.Error())
 		}
-		fmt.Printf("c %#v\n", res)
+
+		//fmt.Printf("c %#v\n", res)
 
 	} else {
 

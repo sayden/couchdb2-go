@@ -110,13 +110,14 @@ func handleResult(lineByt []byte, out chan *DbResult, quit chan struct{}, db str
 
 		select {
 		case <-quit:
-			break
+			return
 		case out <- &DbResult{
 			DbName: db,
 			ErrorResponse: &ErrorResponse{
 				ErrorS: err.Error(),
 			},
 		}:
+		case <-time.After(time.Minute):
 		}
 
 		return
@@ -124,21 +125,59 @@ func handleResult(lineByt []byte, out chan *DbResult, quit chan struct{}, db str
 
 	select {
 	case <-quit:
-		break
+		return
 	case out <- &result:
 	}
 }
 
-func handleScannerErr(err error, out chan *DbResult, db string) {
-	//fmt.Printf("ERROR: scanner error: %s\n", err.Error())
+func handleScannerErr(err error, out chan *DbResult, db string, quit chan struct{}) {
+	fmt.Printf("ERROR: scanner error: %s\n", err.Error())
 
-	out <- &DbResult{
+	select {
+	case <-quit:
+		return
+	case out <- &DbResult{
 		DbName: db,
 		ErrorResponse: &ErrorResponse{
 			ErrorS: "Error scanning input",
 			Reason: err.Error(),
 		},
+	}:
 	}
+}
+
+func dbResultHandler(httpRes *http.Response, out chan *DbResult, quit chan struct{}, db string) {
+	defer httpRes.Body.Close()
+
+	//Test
+	reader := bufio.NewReader(httpRes.Body)
+
+	ln, err := Readln(reader)
+	for err == nil {
+		handleResult(ln, out, quit, db)
+		ln, err = Readln(reader)
+	}
+
+	handleScannerErr(err, out, db, quit)
+
+	fmt.Println("Closing CouchDB client")
+
+	close(out)
+	close(quit)
+}
+
+func Readln(r *bufio.Reader) (ln []byte, err error) {
+	var (
+		isPrefix bool = true
+		line     []byte
+	)
+
+	for isPrefix && err == nil {
+		line, isPrefix, err = r.ReadLine()
+		ln = append(ln, line...)
+	}
+
+	return ln, err
 }
 
 func (d *DatabasesClient) ChangesContinuousRaw(db string, queryReq map[string]string, out chan *DbResult, quit chan struct{}) (chan *DbResult, chan<- struct{}, error) {
@@ -180,24 +219,6 @@ func (d *DatabasesClient) ChangesContinuousRaw(db string, queryReq map[string]st
 	go dbResultHandler(httpRes, out, quit, db)
 
 	return out, quit, nil
-}
-
-func dbResultHandler(httpRes *http.Response, out chan *DbResult, quit chan struct{}, db string) {
-	scanner := bufio.NewScanner(httpRes.Body)
-
-	defer httpRes.Body.Close()
-
-	for scanner.Scan() {
-		handleResult(scanner.Bytes(), out, quit, db)
-	}
-
-	if err := scanner.Err(); err != nil {
-		handleScannerErr(err, out, db)
-	}
-
-	fmt.Println("Quitting")
-
-	close(out)
 }
 
 func (d *DatabasesClient) Compact(db string) (*OkKoResponse, error) {

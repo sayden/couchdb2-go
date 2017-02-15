@@ -211,7 +211,8 @@ type DbResult struct {
 	ID      string `json:"id"`
 	Seq     int    `json:"seq"`
 	Deleted bool   `json:"deleted,omitempty"`
-	DbName  string `json:"database, omitempty"`
+	DbName  string `json:"database,omitempty"`
+	Doc     interface{} `json:"doc,omitempty"`
 }
 
 type ChangesResponse struct {
