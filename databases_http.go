@@ -143,6 +143,8 @@ func handleScannerErr(err error, out chan *DbResult, db string, quit chan struct
 			Reason: err.Error(),
 		},
 	}:
+		close(out)
+		close(quit)
 	}
 }
 
