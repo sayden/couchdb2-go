@@ -208,10 +208,10 @@ type DbResult struct {
 	Changes []struct {
 		Rev string `json:"rev"`
 	} `json:"changes"`
-	ID      string `json:"id"`
-	Seq     int    `json:"seq"`
-	Deleted bool   `json:"deleted,omitempty"`
-	DbName  string `json:"database,omitempty"`
+	ID      string      `json:"id"`
+	Seq     string      `json:"seq"`
+	Deleted bool        `json:"deleted,omitempty"`
+	DbName  string      `json:"database,omitempty"`
 	Doc     interface{} `json:"doc,omitempty"`
 }
 
