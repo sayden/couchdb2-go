@@ -55,3 +55,11 @@ func NewDesignDocuments(timeout time.Duration, addr string, user, pass string, s
 
 	return
 }
+
+func NewDesignDocumentsWithConnection(conn *CouchDb2ConnDetails) (doc DesignDocuments) {
+	doc = &DesignDocsClient{
+		CouchDb2ConnDetails: conn,
+	}
+
+	return
+}
