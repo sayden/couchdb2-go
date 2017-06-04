@@ -104,22 +104,7 @@ func handleResult(lineByt []byte, out chan *DbResult, quit chan struct{}, db str
 	var result DbResult
 	result.DbName = db
 
-	err := json.Unmarshal(lineByt, &result)
-	if err != nil {
-		//fmt.Printf("ERROR unmarshaling result: DATA: '%s'. Desc: %s\n", string(lineByt), err.Error())
-
-		select {
-		case <-quit:
-			return
-		case out <- &DbResult{
-			DbName: db,
-			ErrorResponse: &ErrorResponse{
-				ErrorS: err.Error(),
-			},
-		}:
-		case <-time.After(time.Minute):
-		}
-
+	if err := json.Unmarshal(lineByt, &result); err != nil {
 		return
 	}
 
