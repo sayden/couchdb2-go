@@ -1,5 +1,7 @@
 package couchdb2_goclient
 
+import "encoding/json"
+
 type Database interface {
 	Exists(string) (*bool, error)
 	Meta(string) (*DbMetaResponse, error)
@@ -209,7 +211,7 @@ type DbResult struct {
 		Rev string `json:"rev"`
 	} `json:"changes"`
 	ID      string                 `json:"id"`
-	Seq     interface{}            `json:"seq"`
+	Seq     json.Number            `json:"seq,Number"`
 	Deleted bool                   `json:"deleted,omitempty"`
 	DbName  string                 `json:"database,omitempty"`
 	Doc     map[string]interface{} `json:"doc,omitempty"`
