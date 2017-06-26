@@ -1,6 +1,9 @@
 package couchdb2_goclient
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"net/http"
+)
 
 type Database interface {
 	Exists(string) (*bool, error)
@@ -20,6 +23,7 @@ type Database interface {
 	Changes(db string, req map[string]string) (*ChangesResponse, error)
 	//ChangesContinuous(db string, queryReq map[string]string, inCh chan *DbResult, quitCh chan struct{}) (chan *DbResult, chan<- struct{}, error)
 	ChangesContinuousRaw(db string, queryReq map[string]string, inCh chan *DbResult, quitCh chan struct{}) (chan *DbResult, chan<- struct{}, error)
+	ChangesContinuousBytes(db string, queryReq map[string]string) (*http.Response, error)
 	Compact(db string) (*OkKoResponse, error)
 	CompactDesignDoc(db string, ddoc string) (*OkKoResponse, error)
 	EnsureFullCommit(db string) (*EnsureFullCommitResponse, error)
