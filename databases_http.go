@@ -1,4 +1,4 @@
-package couchdb2_goclient
+package couchdb2_go
 
 import (
 	"bufio"
@@ -167,6 +167,36 @@ func Readln(r *bufio.Reader) (ln []byte, err error) {
 	return ln, err
 }
 
+func (d *DatabasesClient) ChangesContinuousBytes(db string, queryReq map[string]string) (*http.Response, error) {
+	if d.Client == nil {
+		return nil, errors.New("You must set an HTTP Client to make requests. Current client is nil")
+	}
+
+	//take a map of kv and convert them into a "k=v&" string for URL params
+	query := buildURLParams(queryReq)
+
+	//build request
+	fmt.Printf("Attempting connection to %s://%s/%s/_changes?%s\n", d.protocol, d.Address, db, query)
+	reqHttp, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s://%s/%s/_changes?%s", d.protocol, d.Address, db, query), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	//set authentication
+	d.setAuth(reqHttp)
+
+	//set content-type and "accept"
+	completeHeaders(reqHttp)
+
+	//make request
+	httpRes, err := d.Client.Do(reqHttp)
+	if err != nil {
+		return nil, err
+	}
+
+	return httpRes, err
+}
+
 func (d *DatabasesClient) ChangesContinuousRaw(db string, queryReq map[string]string, out chan *DbResult, quit chan struct{}) (chan *DbResult, chan<- struct{}, error) {
 	if d.Client == nil {
 		return nil, nil, errors.New("You must set an HTTP Client to make requests. Current client is nil")
@@ -196,7 +226,7 @@ func (d *DatabasesClient) ChangesContinuousRaw(db string, queryReq map[string]st
 
 	//create channels if necessary
 	if out == nil {
-		out = make(chan *DbResult, 100)
+		out = make(chan *DbResult, 10000)
 	}
 	if quit == nil {
 		quit = make(chan struct{}, 1)

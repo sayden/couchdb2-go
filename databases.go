@@ -1,4 +1,9 @@
-package couchdb2_goclient
+package couchdb2_go
+
+import (
+	"encoding/json"
+	"net/http"
+)
 
 type Database interface {
 	Exists(string) (*bool, error)
@@ -18,6 +23,7 @@ type Database interface {
 	Changes(db string, req map[string]string) (*ChangesResponse, error)
 	//ChangesContinuous(db string, queryReq map[string]string, inCh chan *DbResult, quitCh chan struct{}) (chan *DbResult, chan<- struct{}, error)
 	ChangesContinuousRaw(db string, queryReq map[string]string, inCh chan *DbResult, quitCh chan struct{}) (chan *DbResult, chan<- struct{}, error)
+	ChangesContinuousBytes(db string, queryReq map[string]string) (*http.Response, error)
 	Compact(db string) (*OkKoResponse, error)
 	CompactDesignDoc(db string, ddoc string) (*OkKoResponse, error)
 	EnsureFullCommit(db string) (*EnsureFullCommitResponse, error)
@@ -199,7 +205,7 @@ type ChangesRequest struct {
 }
 
 type LastSeq struct {
-	Last_Seq *int `json:"last_seq"`
+	Last_Seq *string `json:"last_seq"`
 }
 
 type DbResult struct {
@@ -209,7 +215,7 @@ type DbResult struct {
 		Rev string `json:"rev"`
 	} `json:"changes"`
 	ID      string                 `json:"id"`
-	Seq     string                 `json:"seq"`
+	Seq     json.Number            `json:"seq,Number"`
 	Deleted bool                   `json:"deleted,omitempty"`
 	DbName  string                 `json:"database,omitempty"`
 	Doc     map[string]interface{} `json:"doc,omitempty"`
