@@ -1,4 +1,4 @@
-package couchdb2_goclient
+package couchdb2_go
 
 import (
 	"os"

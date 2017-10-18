@@ -1,4 +1,4 @@
-package couchdb2_goclient
+package couchdb2_go
 
 import (
 	"encoding/json"
@@ -205,7 +205,7 @@ type ChangesRequest struct {
 }
 
 type LastSeq struct {
-	Last_Seq *int `json:"last_seq"`
+	Last_Seq *string `json:"last_seq"`
 }
 
 type DbResult struct {
