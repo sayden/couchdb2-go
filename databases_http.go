@@ -105,7 +105,10 @@ func handleResult(lineByt []byte, out chan *DbResult, quit chan struct{}, db str
 	result.DbName = db
 
 	if err := json.Unmarshal(lineByt, &result); err != nil {
-		return
+		result.ErrorResponse = &ErrorResponse{
+			ErrorS: "Error parsing input",
+			Reason: err.Error(),
+		}
 	}
 
 	select {
@@ -141,7 +144,9 @@ func dbResultHandler(httpRes *http.Response, out chan *DbResult, quit chan struc
 
 	ln, err := Readln(reader)
 	for err == nil {
-		handleResult(ln, out, quit, db)
+		if len(ln) > 0 {
+			handleResult(ln, out, quit, db)
+		}
 		ln, err = Readln(reader)
 	}
 
