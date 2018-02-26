@@ -100,12 +100,23 @@ func (d *DatabasesClient) setAuth(r *http.Request) {
 	}
 }
 
+func handleHeartbeat(out chan *HeartBeatResult, quit chan struct{}) {
+	select {
+	case <-quit:
+		return
+	case out <- &HeartBeatResult{}:
+	}
+}
+
 func handleResult(lineByt []byte, out chan *DbResult, quit chan struct{}, db string) {
 	var result DbResult
 	result.DbName = db
 
 	if err := json.Unmarshal(lineByt, &result); err != nil {
-		return
+		result.ErrorResponse = &ErrorResponse{
+			ErrorS: "Error parsing input",
+			Reason: err.Error(),
+		}
 	}
 
 	select {
@@ -133,7 +144,7 @@ func handleScannerErr(err error, out chan *DbResult, db string, quit chan struct
 	}
 }
 
-func dbResultHandler(httpRes *http.Response, out chan *DbResult, quit chan struct{}, db string) {
+func dbResultHandler(httpRes *http.Response, out chan *DbResult, outHeartbeat chan *HeartBeatResult, quit chan struct{}, db string) {
 	defer httpRes.Body.Close()
 
 	//Test
@@ -141,7 +152,11 @@ func dbResultHandler(httpRes *http.Response, out chan *DbResult, quit chan struc
 
 	ln, err := Readln(reader)
 	for err == nil {
-		handleResult(ln, out, quit, db)
+		if len(ln) == 0 {
+			handleHeartbeat(outHeartbeat, quit)
+		} else {
+			handleResult(ln, out, quit, db)
+		}
 		ln, err = Readln(reader)
 	}
 
@@ -150,6 +165,7 @@ func dbResultHandler(httpRes *http.Response, out chan *DbResult, quit chan struc
 	fmt.Println("Closing CouchDB client")
 
 	close(out)
+	close(outHeartbeat)
 	close(quit)
 }
 
@@ -198,8 +214,13 @@ func (d *DatabasesClient) ChangesContinuousBytes(db string, queryReq map[string]
 }
 
 func (d *DatabasesClient) ChangesContinuousRaw(db string, queryReq map[string]string, out chan *DbResult, quit chan struct{}) (chan *DbResult, chan<- struct{}, error) {
+	outCh, _, quitCh, err := d.ChangesContinuousRawWithHeartBeat(db, queryReq, out, nil, quit)
+	return outCh, quitCh, err
+}
+
+func (d *DatabasesClient) ChangesContinuousRawWithHeartBeat(db string, queryReq map[string]string, out chan *DbResult, outHeartbeat chan *HeartBeatResult, quit chan struct{}) (chan *DbResult, chan *HeartBeatResult, chan<- struct{}, error) {
 	if d.Client == nil {
-		return nil, nil, errors.New("You must set an HTTP Client to make requests. Current client is nil")
+		return nil, nil, nil, errors.New("You must set an HTTP Client to make requests. Current client is nil")
 	}
 
 	//take a map of kv and convert them into a "k=v&" string for URL params
@@ -209,7 +230,7 @@ func (d *DatabasesClient) ChangesContinuousRaw(db string, queryReq map[string]st
 	fmt.Printf("Attempting connection to %s://%s/%s/_changes?%s\n", d.protocol, d.Address, db, query)
 	reqHttp, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s://%s/%s/_changes?%s", d.protocol, d.Address, db, query), nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	//set authentication
@@ -221,21 +242,24 @@ func (d *DatabasesClient) ChangesContinuousRaw(db string, queryReq map[string]st
 	//make request
 	httpRes, err := d.Client.Do(reqHttp)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	//create channels if necessary
 	if out == nil {
 		out = make(chan *DbResult, 10000)
 	}
+	if outHeartbeat == nil {
+		outHeartbeat = make(chan *HeartBeatResult, 10000)
+	}
 	if quit == nil {
 		quit = make(chan struct{}, 1)
 	}
 
 	//Launch the listening goroutine that will close http.Body eventually
-	go dbResultHandler(httpRes, out, quit, db)
+	go dbResultHandler(httpRes, out, outHeartbeat, quit, db)
 
-	return out, quit, nil
+	return out, outHeartbeat, quit, nil
 }
 
 func (d *DatabasesClient) Compact(db string) (*OkKoResponse, error) {

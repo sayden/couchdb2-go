@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/kr/pretty"
+	"github.com/stretchr/testify/assert"
 )
 
 var testDatabase Database
@@ -94,6 +95,12 @@ func (*mockedDb) ChangesContinuousRaw(db string, queryReq map[string]string, inC
 	}
 
 	return inCh, quitCh, nil
+}
+
+func (*mockedDb) ChangesContinuousRawWithHeartBeat(db string, queryReq map[string]string, inCh chan *DbResult, inHeartBeatCh chan *HeartBeatResult, quitCh chan struct{}) (chan *DbResult, chan *HeartBeatResult, chan<- struct{}, error) {
+	inHeartBeatCh <- &HeartBeatResult{}
+
+	return inCh, inHeartBeatCh, quitCh, nil
 }
 
 func (*mockedDb) Compact(db string) (*OkKoResponse, error) {
@@ -211,5 +218,27 @@ func TestDatabasesClient_ChangesContinuousRaw(t *testing.T) {
 
 			pretty.Printf("%# v", result.Doc)
 		}
+	})
+}
+
+func TestDatabasesClient_ChangesContinuousRawWithHeartBeat(t *testing.T) {
+	t.Run("Heartbeat returned", func(t *testing.T) {
+		dT := &mockedDb{}
+
+		in := make(chan *DbResult, 1)
+		inHeartbeat := make(chan *HeartBeatResult, 10)
+		quit := make(chan struct{}, 0)
+
+		if _, _, _, err := dT.ChangesContinuousRawWithHeartBeat("test", make(map[string]string), in, inHeartbeat, quit); err != nil {
+			t.Fatal(err)
+		}
+
+		close(quit)
+		close(in)
+		close(inHeartbeat)
+
+		result := <-inHeartbeat
+		assert.Equal(t, &HeartBeatResult{}, result)
+		assert.Equal(t, 0, len(inHeartbeat))
 	})
 }

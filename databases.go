@@ -23,6 +23,7 @@ type Database interface {
 	Changes(db string, req map[string]string) (*ChangesResponse, error)
 	//ChangesContinuous(db string, queryReq map[string]string, inCh chan *DbResult, quitCh chan struct{}) (chan *DbResult, chan<- struct{}, error)
 	ChangesContinuousRaw(db string, queryReq map[string]string, inCh chan *DbResult, quitCh chan struct{}) (chan *DbResult, chan<- struct{}, error)
+	ChangesContinuousRawWithHeartBeat(db string, queryReq map[string]string, inCh chan *DbResult, inHeartBeatCh chan *HeartBeatResult, quitCh chan struct{}) (chan *DbResult, chan *HeartBeatResult, chan<- struct{}, error)
 	ChangesContinuousBytes(db string, queryReq map[string]string) (*http.Response, error)
 	Compact(db string) (*OkKoResponse, error)
 	CompactDesignDoc(db string, ddoc string) (*OkKoResponse, error)
@@ -88,9 +89,9 @@ type AllDocsRequest struct {
 type AllDocsResponse struct {
 	ErrorResponse
 	Offset int `json:"offset"`
-	Rows   []struct {
-		ID    string `json:"id"`
-		Key   string `json:"key"`
+	Rows []struct {
+		ID  string `json:"id"`
+		Key string `json:"key"`
 		Value struct {
 			Rev string `json:"rev"`
 		} `json:"value"`
@@ -107,7 +108,7 @@ type BulkResponse []CreateDocumentResponse
 type FindRequest struct {
 	Selector map[string]interface{} `json:"selector"`
 	Fields   []string               `json:"fields"`
-	Sort     []struct {
+	Sort []struct {
 		Year string `json:"year"`
 	} `json:"sort"`
 	Limit int `json:"limit"`
@@ -135,11 +136,11 @@ type SetIndexResponse struct {
 type IndexResponse struct {
 	ErrorResponse
 	TotalRows int `json:"total_rows"`
-	Indexes   []struct {
+	Indexes []struct {
 		Ddoc interface{} `json:"ddoc"`
 		Name string      `json:"name"`
 		Type string      `json:"type"`
-		Def  struct {
+		Def struct {
 			Fields []struct {
 				ID string `json:"_id"`
 			} `json:"fields"`
@@ -150,11 +151,11 @@ type IndexResponse struct {
 type ExplainResponse struct {
 	ErrorResponse
 	Dbname string `json:"dbname"`
-	Index  struct {
+	Index struct {
 		Ddoc string `json:"ddoc"`
 		Name string `json:"name"`
 		Type string `json:"type"`
-		Def  struct {
+		Def struct {
 			Fields []struct {
 				Year string `json:"year"`
 			} `json:"fields"`
@@ -170,7 +171,7 @@ type ExplainResponse struct {
 		Bookmark string        `json:"bookmark"`
 		Limit    int           `json:"limit"`
 		Skip     int           `json:"skip"`
-		Sort     struct {
+		Sort struct {
 		} `json:"sort"`
 		Fields    []string `json:"fields"`
 		R         []int    `json:"r"`
@@ -179,9 +180,9 @@ type ExplainResponse struct {
 	Limit  int      `json:"limit"`
 	Skip   int      `json:"skip"`
 	Fields []string `json:"fields"`
-	Range  struct {
+	Range struct {
 		StartKey []int `json:"start_key"`
-		EndKey   []struct {
+		EndKey []struct {
 		} `json:"end_key"`
 	} `json:"range"`
 }
@@ -227,6 +228,8 @@ type Deleted struct {
 	Rev     string `json:"_rev"`
 }
 
+type HeartBeatResult struct{}
+
 type ChangesResponse struct {
 	ErrorResponse
 	LastSeq int         `json:"last_seq"`
@@ -257,7 +260,7 @@ type SecurityResponse struct {
 type DoPurgeResponse struct {
 	ErrorResponse
 	PurgeSeq int `json:"purge_seq"`
-	Purged   struct {
+	Purged struct {
 		C6114C65E295552Ab1019E2B046B10E []string `json:"c6114c65e295552ab1019e2b046b10e"`
 	} `json:"purged"`
 }
