@@ -91,6 +91,7 @@ func buildURLParams(q map[string]string) (query string) {
 
 func completeHeaders(r *http.Request) {
 	r.Header.Add("Accept", "application/json")
+	r.Header.Add("Accept-Encoding", "identity")
 	r.Header.Add("Content-Type", "application/json")
 }
 
