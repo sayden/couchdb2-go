@@ -1,4 +1,4 @@
-package couchdb2_go
+package couchdb2go
 
 import (
 	"crypto/tls"

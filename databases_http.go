@@ -1,4 +1,4 @@
-package couchdb2_go
+package couchdb2go
 
 import (
 	"bufio"
@@ -175,9 +175,11 @@ func Readln(r *bufio.Reader) (ln []byte, err error) {
 		isPrefix bool = true
 		line     []byte
 	)
-
+	fmt.Println("HELLO")
 	for isPrefix && err == nil {
+		fmt.Println("WORLD1")
 		line, isPrefix, err = r.ReadLine()
+		fmt.Println("WORLD2")
 		ln = append(ln, line...)
 	}
 
