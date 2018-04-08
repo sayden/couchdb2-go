@@ -151,21 +151,26 @@ func dbResultHandler(httpRes *http.Response, out chan<- *DbResult, quit chan str
 	//Test
 	reader := bufio.NewReader(httpRes.Body)
 
+	timeout := time.NewTimer(5 * time.Minute)
+
 	ln, err := Readln(reader)
 	for err == nil {
+		timeout.Reset(5 * time.Minute)
+
 		if len(ln) == 0 {
 			// Probaby a heartbeat
 			log.WithField("db", db).Debug("Heartbeat received")
 			select {
-			case <-time.After(5 * time.Minute):
+			case <-timeout.C:
 				log.Error("5 minutes blocked by channel trying to send heartbeat")
 			case <-quit:
+				timeout.Stop()
 				return
 			case out <- &DbResult{
 				HeartBeat: true,
 				DbName:    db,
 			}:
-				log.Debug("Heartbeat received")
+				timeout.Stop()
 			}
 		} else {
 			handleResult(ln, out, quit, db)
