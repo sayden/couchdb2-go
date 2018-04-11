@@ -2,14 +2,15 @@ package couchdb2go
 
 import (
 	"bufio"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/thehivecorporation/log"
 	"net/http"
 	"strings"
 	"time"
+	"github.com/json-iterator/go"
 )
+var fastJson = jsoniter.ConfigCompatibleWithStandardLibrary
 
 type DatabasesClient struct {
 	*CouchDb2ConnDetails
@@ -114,7 +115,7 @@ func handleResult(lineByt []byte, out chan<- *DbResult, quit chan struct{}, db s
 	var result DbResult
 	result.DbName = db
 
-	if err := json.Unmarshal(lineByt, &result); err != nil {
+	if err := fastJson.Unmarshal(lineByt, &result); err != nil {
 		result.ErrorResponse = &ErrorResponse{
 			ErrorS: "Error parsing input",
 			Reason: err.Error(),
