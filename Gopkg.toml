@@ -35,4 +35,4 @@
 
 [[constraint]]
   name = "github.com/thehivecorporation/log"
-  version = "0.1.7"
+  branch = "master"
