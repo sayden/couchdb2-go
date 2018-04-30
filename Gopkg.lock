@@ -8,12 +8,6 @@
   version = "v1.1.0"
 
 [[projects]]
-  name = "github.com/golang/mock"
-  packages = ["gomock"]
-  revision = "c34cdb4725f4c3844d095133c6e40e448b86589b"
-  version = "v1.1.1"
-
-[[projects]]
   name = "github.com/json-iterator/go"
   packages = ["."]
   revision = "ca39e5af3ece67bbcda3d0f4f56a8e24d9f2dad4"
@@ -67,15 +61,9 @@
   packages = ["."]
   revision = "2c9afb1ad276ece5f0b819bbf9597ba436ea44b0"
 
-[[projects]]
-  branch = "master"
-  name = "golang.org/x/net"
-  packages = ["context"]
-  revision = "61147c48b25b599e5b561d2e9c4f3e1ef489ca41"
-
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "164c5bc99edb8412faf30cdecda46dc8466099d4d08f3eca53861f53840470a6"
+  inputs-digest = "2b71f4934ccd1e2c7f2404ea41fa1f2cdeb216500261f73f7edffdeb150d0190"
   solver-name = "gps-cdcl"
   solver-version = 1
