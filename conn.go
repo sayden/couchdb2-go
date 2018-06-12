@@ -8,6 +8,8 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
+	"github.com/thehivecorporation/log"
 	"time"
 )
 
@@ -109,22 +111,26 @@ func (c *CouchDb2ConnDetails) requester(method, url string, reqBody io.Reader, r
 	return nil
 }
 
-func NewConnection(timeout time.Duration, addr string, user, pass string, secure bool) (conn *CouchDb2ConnDetails) {
+func NewConnection(timeout time.Duration, addr string, user, pass string, _ bool) (conn *CouchDb2ConnDetails) {
+	u, err := url.Parse(addr)
+	if err != nil {
+		log.WithError(err).Fatal("Could not parse Couchdb address")
+	}
+
 	conn = &CouchDb2ConnDetails{
 		Client: &http.Client{
 			Timeout: timeout,
 		},
-		Address:  addr,
+		Address:  u.Host,
 		Username: user,
 		Password: pass,
-		protocol: "http",
+		protocol: u.Scheme,
 	}
 
-	if secure {
+	if u.Scheme == "https" {
 		conn.Client.Transport = &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		}
-		conn.protocol = "https"
 	}
 
 	return conn
